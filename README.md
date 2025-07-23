@@ -65,6 +65,10 @@ Batch processing. The following exambple will process all pdf files in the folde
 ```bash
 php resolve_pdf_ips.php /folder/with/pdf/files/*.pdf
 ```
+You could also add multiple pdf files one by one in the command:
+```bash
+php resolve_pdf_ips.php file1.pdf file2.pdf file3.pdf
+```
 Notes:
 * Ignores private, loopback, multicast, and reserved IPs (like 192.168.x.x, 127.0.0.1, 0.0.0.0)
 * Domains are resolved to A and AAAA records
