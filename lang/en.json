@@ -1,6 +1,7 @@
 {
   "processing_file": "Processing file: %s",
   "file_not_found": "File not found: %s",
+  "file_not_found_skip": "File not found (skipping): %s",
   "pdftotext_missing": "pdftotext is not installed. Install: sudo apt install poppler-utils",
   "extracting_text": "Extracting text from PDF...",
   "text_extracted": "Text extracted. Searching for addresses...",
@@ -15,5 +16,10 @@
   "log_saved": "Log saved: %s",
   "failed_resolve": "Failed to resolve domains: %s",
   "ignored_ips": "Ignored reserved/private IPs: %d entries",
-  "usage": "Usage: php resolve_pdf_ips.php <pdf_file> [options]\nOptions:\n  --mikrotik, -m           Generate MikroTik .rsc import file\n  --list-name=NAME         Custom address list name (default: fstek_ban)\n  --locale=en|ru           Set language (default: auto-detect)\n\nExamples:\n  php resolve_pdf_ips.php report.pdf\n  php resolve_pdf_ips.php report.pdf -m --list-name=malicious --locale=ru"
+  "usage": "Usage: php resolve_pdf_ips.php <pdf_file> [options]\nOptions:\n  --mikrotik, -m           Generate MikroTik .rsc import file\n  --list-name=NAME         Custom address list name (default: fstek_ban)\n  --locale=en|ru           Set language (default: auto-detect)",
+  "found_pdfs": "Found %d PDF file(s) to process.",
+  "no_valid_pdfs": "No valid PDF files found.",
+  "no_pdfs_by_mask": "No PDF files found by mask: %s",
+  "invalid_list_name": "Invalid list name: %s",
+  "done_file": "Done."
 }
