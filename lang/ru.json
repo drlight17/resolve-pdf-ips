@@ -1,0 +1,19 @@
+{
+  "processing_file": "Обработка файла: %s",
+  "file_not_found": "Файл не найден: %s",
+  "pdftotext_missing": "Утилита pdftotext не установлена. Установите: sudo apt install poppler-utils",
+  "extracting_text": "Извлечение текста из PDF...",
+  "text_extracted": "Текст извлечён. Поиск адресов...",
+  "no_addresses": "Адреса не найдены.",
+  "candidates_found": "Найдено кандидатов: %d",
+  "resolving": "Разрешение доменов и фильтрация IP...",
+  "processing": "Обработка... (Ctrl+C для остановки)",
+  "done": "Обработка завершена.",
+  "public_ips_found": "Найдено публичных IP: %d",
+  "output_saved": "Результат сохранён в: %s",
+  "mikrotik_saved": "Файл для MikroTik сохранён: %s",
+  "log_saved": "Лог сохранён: %s",
+  "failed_resolve": "Не разрешились домены: %s",
+  "ignored_ips": "Проигнорировано служебных IP: %d записей",
+  "usage": "Использование: php resolve_pdf_ips.php <pdf_file> [опции]\nОпции:\n  --mikrotik, -m           Создать .rsc файл для MikroTik\n  --list-name=ИМЯ          Имя списка (по умолчанию: fstek_ban)\n  --locale=en|ru           Язык (по умолчанию: автоматически)\n\nПримеры:\n  php resolve_pdf_ips.php report.pdf\n  php resolve_pdf_ips.php report.pdf -m --list-name=malicious --locale=ru"
+}
