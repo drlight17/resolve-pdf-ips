@@ -61,6 +61,10 @@ Force set localization to Russian (default is current console locale):
 ```bash
 php resolve_pdf_ips.php your_report.pdf --locale=ru
 ```
+Batch processing. The following exambple will process all pdf files in the folder `/folder/with/pdf/files/`
+```bash
+php resolve_pdf_ips.php /folder/with/pdf/files/*.pdf
+```
 Notes:
 * Ignores private, loopback, multicast, and reserved IPs (like 192.168.x.x, 127.0.0.1, 0.0.0.0)
 * Domains are resolved to A and AAAA records
