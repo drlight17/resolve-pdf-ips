@@ -21,5 +21,11 @@
   "no_valid_pdfs": "Не найдено ни одного корректного PDF-файла.",
   "no_pdfs_by_mask": "PDF-файлы по маске не найдены: %s",
   "invalid_list_name": "Недопустимое имя списка: %s",
-  "done_file": "Готово."
+  "done_file": "Готово.",
+  "loading_exclude": "Загрузка списка исключений из: %s",
+  "exclude_loaded_entries": "Загружено %d записей из файла исключений.",
+  "exclude_file_not_found": "Файл исключений не найден: %s",
+  "exclude_file_cannot_read": "Невозможно прочитать файл исключений: %s",
+  "exclude_invalid_cidr": "Неверный формат CIDR в списке исключений: %s",
+  "exclude_invalid_entry": "Неверная запись в списке исключений: %s"
 }

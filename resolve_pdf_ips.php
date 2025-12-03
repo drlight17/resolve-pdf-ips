@@ -6,12 +6,17 @@ $outputFile = 'output_ips.txt';
 $logFile = 'resolve_log.txt';
 $defaultListName = 'fstek_ban';
 $langDir = 'lang';
+$excludeFile = 'exclude_ips.txt'; // Инициализируем переменную для файла исключений
 
 // === Определение языка ===
 function detectLocale($argv) {
     foreach ($argv as $arg) {
         if (preg_match('/^--locale=(en|ru)$/', $arg, $matches)) {
             return $matches[1];
+        }
+        // Проверяем аргумент --exclude
+        if (preg_match('/^--exclude=(.+)$/', $arg, $matches)) {
+            $GLOBALS['excludeFile'] = $matches[1]; // Сохраняем путь в глобальной переменной
         }
     }
     $locale = getenv('LC_ALL') ?: getenv('LANG');
@@ -88,6 +93,88 @@ function logMessage($msg) {
     file_put_contents($GLOBALS['logFile'], $msg . "\n", FILE_APPEND | LOCK_EX);
 }
 
+// --- Добавлено: Функция для загрузки списка исключений ---
+function loadExcludeList($excludeFilePath) {
+    if (!file_exists($excludeFilePath)) {
+        die("[-] " . __("exclude_file_not_found", $excludeFilePath) . "\n");
+    }
+
+    $content = file_get_contents($excludeFilePath);
+    if ($content === false) {
+        die("[-] " . __("exclude_file_cannot_read", $excludeFilePath) . "\n");
+    }
+
+    $lines = explode("\n", $content);
+    $excludeList = [
+        'ips' => [],
+        'cidrs' => [
+            'v4' => [], // IPv4 CIDR для исключения
+            'v6' => []  // IPv6 CIDR для исключения
+        ]
+    ];
+
+    foreach ($lines as $line) {
+        $entry = trim($line);
+        // Пропускаем пустые строки и комментарии
+        if ($entry === '' || strpos($entry, '#') === 0) {
+            continue;
+        }
+
+        if (filter_var($entry, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $excludeList['ips'][] = $entry;
+        } elseif (filter_var($entry, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $excludeList['ips'][] = $entry;
+        } elseif (strpos($entry, '/') !== false) { // Скорее всего CIDR
+            list($subnet, $bits) = explode('/', $entry, 2);
+            if (filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && is_numeric($bits) && $bits >= 0 && $bits <= 32) {
+                $excludeList['cidrs']['v4'][] = $entry;
+            } elseif (filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && is_numeric($bits) && $bits >= 0 && $bits <= 128) {
+                $excludeList['cidrs']['v6'][] = $entry;
+            } else {
+                logMessage("[~] " . __("exclude_invalid_cidr", $entry));
+            }
+        } else {
+            logMessage("[~] " . __("exclude_invalid_entry", $entry));
+        }
+    }
+
+    return $excludeList;
+}
+
+// --- Добавлено: Функция для проверки, нужно ли исключить IP ---
+function shouldExcludeIP($ip, $excludeList) {
+    if (empty($excludeList)) {
+        return false; // Если список исключений пуст, не исключаем
+    }
+
+    // Проверяем, есть ли IP в списке исключений
+    if (in_array($ip, $excludeList['ips'])) {
+        return true;
+    }
+
+    // Проверяем IPv4 CIDR, если IP - IPv4
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        foreach ($excludeList['cidrs']['v4'] as $cidr) {
+            if (ipInCIDR($ip, $cidr)) {
+                return true;
+            }
+        }
+    }
+
+    // Проверяем IPv6 CIDR, если IP - IPv6
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        foreach ($excludeList['cidrs']['v6'] as $cidr) {
+            if (ipInCIDR($ip, $cidr)) { // Примечание: ipInCIDR может потребовать доработки для IPv6
+                return true;
+            }
+        }
+    }
+
+    // IP не найден в списке исключений или соответствующих CIDR
+    return false;
+}
+// --- Конец добавления ---
+
 // === Спиннер ===
 $spinner = ['\\', '|', '/', '-'];
 $spinIndex = 0;
@@ -122,7 +209,22 @@ for ($i = 2; $i < $argc; $i++) {
             die("[-] " . __("invalid_list_name", $listName) . "\n");
         }
     }
+    // Аргумент --exclude теперь обрабатывается в detectLocale
+    // elseif (preg_match('/^--exclude=(.+)$/', $arg, $m)) {
+    //     $excludeFile = $m[1];
+    // }
 }
+
+// --- Добавлено: Загружаем список исключений, если указан ---
+$loadedExcludeList = null;
+if ($excludeFile) {
+    echo "[*] " . __("loading_exclude", $excludeFile) . "\n";
+    logMessage("[*] " . __("loading_exclude", $excludeFile));
+    $loadedExcludeList = loadExcludeList($excludeFile);
+    echo "[*] " . __("exclude_loaded_entries", count($loadedExcludeList['ips']) + count($loadedExcludeList['cidrs']['v4']) + count($loadedExcludeList['cidrs']['v6'])) . "\n";
+    logMessage("[*] " . __("exclude_loaded_entries", count($loadedExcludeList['ips']) + count($loadedExcludeList['cidrs']['v4']) + count($loadedExcludeList['cidrs']['v6'])));
+}
+// --- Конец добавления ---
 
 // === Определение списка PDF-файлов ===
 $files = [];
@@ -135,7 +237,7 @@ if (strpos($argPath, '*') !== false) {
 } elseif ($argc > 2) {
     for ($i = 1; $i < $argc; $i++) {
         $arg = $argv[$i];
-        if (in_array($arg, ['--mikrotik', '-m']) || preg_match('/^--list-name=/i', $arg) || preg_match('/^--locale=/i', $arg)) {
+        if (in_array($arg, ['--mikrotik', '-m']) || preg_match('/^--list-name=/i', $arg) || preg_match('/^--locale=/i', $arg) || preg_match('/^--exclude=/i', $arg)) { // Добавлен --exclude в список флагов
             break;
         }
         if (file_exists($arg) && strtolower(pathinfo($arg, PATHINFO_EXTENSION)) === 'pdf') {
@@ -212,7 +314,13 @@ foreach ($files as $pdfPath) {
 
         if (filter_var($clean, FILTER_VALIDATE_IP)) {
             if (isPublicIP($clean)) {
-                $fileIPs[] = $clean;
+                // --- Добавлено: Проверяем, нужно ли исключить IP ---
+                if (shouldExcludeIP($clean, $loadedExcludeList)) {
+                    $fileIgnored[] = "$clean (excluded)";
+                } else {
+                    $fileIPs[] = $clean;
+                }
+                // --- Конец добавления ---
             } else {
                 $fileIgnored[] = "$clean (reserved)";
             }
@@ -221,10 +329,16 @@ foreach ($files as $pdfPath) {
             if (!empty($resolved)) {
                 foreach ($resolved as $ip) {
                     if (isPublicIP($ip)) {
-                        $fileIPs[] = $ip;
-                        if (!isset($fileSources[$ip])) {
-                            $fileSources[$ip] = $clean;
+                        // --- Добавлено: Проверяем, нужно ли исключить IP ---
+                        if (shouldExcludeIP($ip, $loadedExcludeList)) {
+                            $fileIgnored[] = "$ip (from $clean, excluded)";
+                        } else {
+                            $fileIPs[] = $ip;
+                            if (!isset($fileSources[$ip])) {
+                                $fileSources[$ip] = $clean;
+                            }
                         }
+                        // --- Конец добавления ---
                     } else {
                         $fileIgnored[] = "$ip (from $clean)";
                     }
