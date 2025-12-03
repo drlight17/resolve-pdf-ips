@@ -6,7 +6,7 @@ $outputFile = 'output_ips.txt';
 $logFile = 'resolve_log.txt';
 $defaultListName = 'fstek_ban';
 $langDir = 'lang';
-$excludeFile = 'exclude_ips.txt'; // Инициализируем переменную для файла исключений
+$excludeFile = null; // Инициализируем переменную для файла исключений
 
 // === Определение языка ===
 function detectLocale($argv) {
