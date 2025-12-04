@@ -110,7 +110,8 @@ function loadExcludeList($excludeFilePath) {
         'cidrs' => [
             'v4' => [], // IPv4 CIDR для исключения
             'v6' => []  // IPv6 CIDR для исключения
-        ]
+        ],
+        'domains' => [] // Доменные имена для исключения
     ];
 
     foreach ($lines as $line) {
@@ -133,10 +134,32 @@ function loadExcludeList($excludeFilePath) {
             } else {
                 logMessage("[~] " . __("exclude_invalid_cidr", $entry));
             }
+        } elseif (preg_match('/^[a-zA-Z0-9][a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$/', $entry)) { // Скорее всего домен
+            $excludeList['domains'][] = $entry;
         } else {
             logMessage("[~] " . __("exclude_invalid_entry", $entry));
         }
     }
+
+    // --- Добавлено: Резолвинг доменов в IP и добавление в список исключений ---
+    $allResolvedIPs = [];
+    foreach ($excludeList['domains'] as $domain) {
+        $resolvedIPs = resolveDomainToIPs($domain);
+        if (!empty($resolvedIPs)) {
+            foreach ($resolvedIPs as $ip) {
+                if (isPublicIP($ip)) {
+                    $allResolvedIPs[] = $ip;
+                }
+            }
+        } else {
+            logMessage("[~] " . __("exclude_domain_no_ip", $domain));
+        }
+    }
+    // Добавляем резолвленные IP к списку исключений
+    $excludeList['ips'] = array_merge($excludeList['ips'], $allResolvedIPs);
+    // Удаляем дубликаты
+    $excludeList['ips'] = array_unique($excludeList['ips']);
+    // --- Конец добавления ---
 
     return $excludeList;
 }
@@ -171,6 +194,36 @@ function shouldExcludeIP($ip, $excludeList) {
     }
 
     // IP не найден в списке исключений или соответствующих CIDR
+    return false;
+}
+
+// --- Добавлено: Функция для проверки, нужно ли исключить домен (теперь просто проверяет имя) ---
+function shouldExcludeDomain($domain, $excludeList) {
+    if (empty($excludeList)) {
+        return false; // Если список исключений пуст, не исключаем
+    }
+
+    // Проверяем, есть ли домен в списке исключений (точное совпадение)
+    if (in_array($domain, $excludeList['domains'])) {
+        return true;
+    }
+
+    // Проверяем, может ли домен соответствовать шаблону в списке исключений (например, *.example.com)
+    foreach ($excludeList['domains'] as $excludedDomainPattern) {
+        // Проверяем, содержит ли шаблон подстановочный знак '*'
+        if (strpos($excludedDomainPattern, '*') !== false) {
+            // Экранируем спецсимволы, кроме '*'
+            $pattern = preg_quote($excludedDomainPattern, '/');
+            // Заменяем '*' на '.*' для соответствия регулярному выражению
+            $pattern = str_replace('\*', '.*', $pattern);
+            // Проверяем совпадение
+            if (preg_match('/^' . $pattern . '$/i', $domain)) {
+                return true;
+            }
+        }
+    }
+
+    // Домен не найден в списке исключений или соответствующих шаблонах
     return false;
 }
 // --- Конец добавления ---
@@ -221,8 +274,9 @@ if ($excludeFile) {
     echo "[*] " . __("loading_exclude", $excludeFile) . "\n";
     logMessage("[*] " . __("loading_exclude", $excludeFile));
     $loadedExcludeList = loadExcludeList($excludeFile);
-    echo "[*] " . __("exclude_loaded_entries", count($loadedExcludeList['ips']) + count($loadedExcludeList['cidrs']['v4']) + count($loadedExcludeList['cidrs']['v6'])) . "\n";
-    logMessage("[*] " . __("exclude_loaded_entries", count($loadedExcludeList['ips']) + count($loadedExcludeList['cidrs']['v4']) + count($loadedExcludeList['cidrs']['v6'])));
+    $totalEntries = count($loadedExcludeList['ips']) + count($loadedExcludeList['cidrs']['v4']) + count($loadedExcludeList['cidrs']['v6']) + count($loadedExcludeList['domains']);
+    echo "[*] " . __("exclude_loaded_entries", $totalEntries) . "\n";
+    logMessage("[*] " . __("exclude_loaded_entries", $totalEntries));
 }
 // --- Конец добавления ---
 
@@ -325,6 +379,12 @@ foreach ($files as $pdfPath) {
                 $fileIgnored[] = "$clean (reserved)";
             }
         } elseif (preg_match('/^[a-zA-Z0-9][a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$/', $clean)) {
+            // --- Добавлено: Проверяем, нужно ли исключить домен ---
+            if (shouldExcludeDomain($clean, $loadedExcludeList)) {
+                $fileIgnored[] = "$clean (domain excluded)";
+                continue; // Переходим к следующему элементу, не резолвим домен
+            }
+            // --- Конец добавления ---
             $resolved = resolveDomainToIPs($clean);
             if (!empty($resolved)) {
                 foreach ($resolved as $ip) {
