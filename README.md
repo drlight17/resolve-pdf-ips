@@ -69,7 +69,7 @@ You could also add multiple pdf files one by one in the command:
 ```bash
 php resolve_pdf_ips.php file1.pdf file2.pdf file3.pdf
 ```
-Also you could create you list of ip addresses to exclude from the result files. It could be reached by set `$excludeFile` variable or by `--exclude=` argument: 
+Also you could create your list of ip or domain (FQDN) addresses each on the new line to exclude from the result files. It could be reached by set `$excludeFile` variable or by `--exclude=` argument: 
 ```bash
 php resolve_pdf_ips.php --exclude="/path/to/exclude/file"
 ```
